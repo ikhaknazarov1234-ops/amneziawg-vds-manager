@@ -239,7 +239,7 @@ install_amneziawg_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
   apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg2 software-properties-common python3-launchpadlib \
+    ca-certificates curl gnupg2 \
     iproute2 iptables qrencode resolvconf lsb-release
 
   if apt-cache show "linux-headers-$(uname -r)" >/dev/null 2>&1; then
@@ -252,13 +252,21 @@ install_amneziawg_packages() {
   source /etc/os-release
 
   if [[ "${ID:-}" == "ubuntu" ]]; then
-    log "Добавляю PPA amnezia/ppa..."
+  log "Добавляю PPA amnezia/ppa..."
+  apt-get install -y --no-install-recommends software-properties-common python3-launchpadlib || true
+  if command_exists add-apt-repository; then
     add-apt-repository -y ppa:amnezia/ppa
   else
-    log "Добавляю PPA amnezia/ppa для Debian по инструкции AmneziaWG..."
+    warn "add-apt-repository не найден, добавляю PPA вручную."
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 57290828 || true
-    ensure_deb_src_debian
+    echo "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu ${VERSION_CODENAME:-focal} main" > /etc/apt/sources.list.d/amnezia-ppa.list
+    echo "deb-src https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu ${VERSION_CODENAME:-focal} main" >> /etc/apt/sources.list.d/amnezia-ppa.list
   fi
+else
+  log "Добавляю PPA amnezia/ppa для Debian по инструкции AmneziaWG..."
+  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 57290828 || true
+  ensure_deb_src_debian
+fi
 
   apt-get update
   log "Устанавливаю AmneziaWG..."
