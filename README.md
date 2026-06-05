@@ -37,6 +37,14 @@ chmod +x amneziawg-vds-manager.sh
 sudo bash amneziawg-vds-manager.sh
 ```
 
+## Чистая установка на Debian 13
+
+На свежей VDS с Debian 13 сначала установи базовые пакеты:
+
+```bash
+apt update
+apt install -y curl ca-certificates
+
 ## Меню
 
 ```text
