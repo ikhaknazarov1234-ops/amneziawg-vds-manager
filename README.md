@@ -134,7 +134,7 @@ sudo bash amneziawg-vds-manager.sh
 Через PowerShell:
 
 ```powershell
-scp root@SERVER_IP:/root/amneziawg-clients/pc1.conf C:\Users\ikhak\Downloads\
+scp root@SERVER_IP:/root/amneziawg-clients/ИМЯ_КОНФИГА.conf ПУТЬ (например C:\Users\downl\file)
 ```
 
 Если SSH недоступен, можно вывести конфиг в консоль VDS:
@@ -146,7 +146,7 @@ cat /root/amneziawg-clients/pc1.conf
 И сохранить его на ПК как:
 
 ```text
-pc1.conf
+ИМЯ_КОНФИГА.conf
 ```
 
 ## Какой клиент использовать
