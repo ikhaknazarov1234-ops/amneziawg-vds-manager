@@ -39,7 +39,7 @@ sudo bash amneziawg-vds-manager.sh
 
 ## Проверка перед запуском
 
-На свежей VDS с Debian 13
+На свежей VDS с Debian 13:
 
 ```bash
 apt update
@@ -55,8 +55,14 @@ bash -n amneziawg-vds-manager.sh && echo "OK"
 
 grep -n "resolvconf\|apt-key\|software-properties-common\|python3-launchpadlib" amneziawg-vds-manager.sh
 ```
-Результат должен быть "ОК"
-А после grep — пусто
+
+Результат должен быть:
+
+```text
+OK
+```
+
+После `grep` вывода быть не должно.
 
 ## Поддерживаемые ОС
 
@@ -91,6 +97,8 @@ Debian / Ubuntu с systemd и apt
 443/UDP
 ```
 
+Если клиент не подключается и на сервере нет входящих UDP-пакетов, сначала проверь firewall/security group у провайдера.
+
 ## Где лежат клиентские конфиги
 
 ```bash
@@ -123,26 +131,54 @@ sudo bash amneziawg-vds-manager.sh
 1) Только VPN-сетка 10.66.0.0/24
 ```
 
+В этом режиме устройства видят друг друга по адресам `10.66.0.x`, но весь интернет клиента не идёт через VDS.
+
 Если нужно, чтобы весь интернет клиента шёл через VDS, выбирай:
 
 ```text
 2) Весь интернет через VDS
 ```
 
+## Важное правило для клиентов
+
+Один клиентский конфиг предназначен только для одного устройства.
+
+Правильно:
+
+```text
+phone1     отдельный конфиг
+notebook1  отдельный конфиг
+pc1        отдельный конфиг
+```
+
+Неправильно: использовать один и тот же `.conf` на телефоне и ноутбуке одновременно.
+
+Если один конфиг используется на нескольких устройствах, будут конфликтовать ключи, VPN-IP и endpoint. Из-за этого подключение может работать нестабильно.
+
+Для каждого нового устройства создавай нового клиента через меню:
+
+```text
+3) Создать клиента
+```
+
 ## Как скачать конфиг на Windows
 
 Через PowerShell:
 
+```powershell
 scp root@SERVER_IP:/root/amneziawg-clients/ИМЯ_КОНФИГА.conf .\ИМЯ_КОНФИГА.conf
+```
 
 Пример:
 
+```powershell
 scp root@SERVER_IP:/root/amneziawg-clients/pc1.conf .\pc1.conf
+```
 
 Если SSH недоступен, можно вывести конфиг в консоль VDS:
 
 ```bash
-cat /root/amneziawg-clients/ИМЯ_Конфига.conf
+cat /root/amneziawg-clients/ИМЯ_КОНФИГА.conf
 ```
 
 И сохранить его на ПК как:
@@ -159,6 +195,61 @@ cat /root/amneziawg-clients/ИМЯ_Конфига.conf
 
 ```text
 Jc, Jmin, Jmax, S1, S2, S3, S4, H1, H2, H3, H4
+```
+
+## Проверка работы
+
+На сервере:
+
+```bash
+sudo awg show awg0
+```
+
+У подключённых клиентов должны быть строки:
+
+```text
+latest handshake: ...
+transfer: ... received, ... sent
+```
+
+Проверка с сервера до клиентов:
+
+```bash
+ping -c 4 10.66.0.2
+ping -c 4 10.66.0.3
+```
+
+Проверка с клиента до сервера:
+
+```bash
+ping 10.66.0.1
+```
+
+Проверка между клиентами:
+
+```bash
+ping 10.66.0.2
+ping 10.66.0.3
+```
+
+Если сервер пингует клиентов, клиенты пингуют сервер, и клиенты пингуют друг друга по адресам `10.66.0.x`, VPN-сетка работает.
+
+## Диагностика UDP
+
+На сервере можно посмотреть входящие пакеты:
+
+```bash
+sudo tcpdump -ni any udp port 51820
+```
+
+Если при попытке подключения клиента пакетов нет, проблема обычно не в скрипте, а в доступности UDP-порта.
+
+Проверь:
+
+```text
+51820/UDP открыт у провайдера
+в клиентском конфиге правильный Endpoint
+клиент импортирован в AmneziaVPN / AmneziaWG
 ```
 
 ## Если ранее запускалась старая версия скрипта
@@ -184,7 +275,7 @@ sudo apt update
 ```bash
 rm -f amneziawg-vds-manager.sh
 
-curl -fsSL https://raw.githubusercontent.com/ikhaknazarov1234-ops/amneziawg-vds-manager/main/amneziawg-vds-manager.sh -o amneziawg-vds-manager.sh
+curl -fsSL "https://raw.githubusercontent.com/ikhaknazarov1234-ops/amneziawg-vds-manager/main/amneziawg-vds-manager.sh?cache=$(date +%s)" -o amneziawg-vds-manager.sh
 
 chmod +x amneziawg-vds-manager.sh
 bash -n amneziawg-vds-manager.sh && echo "OK"
@@ -199,24 +290,17 @@ grep -n "resolvconf\|apt-key\|software-properties-common\|python3-launchpadlib" 
 
 В исправленной версии эти слова не должны находиться в основной установке зависимостей.
 
+## Удаление
+
+Через меню:
+
+```text
+2) Удалить AmneziaWG
+```
+
+Скрипт удалит серверные конфиги и клиентские файлы после подтверждения.
+
 ## Важно
 
 Не загружай клиентские `.conf` файлы на GitHub и не отправляй их в общие чаты. Внутри находится приватный ключ клиента.
 
-Важное правило для клиентов
-
-Один клиентский конфиг предназначен только для одного устройства.
-
-Правильно:
-
-phone1     отдельный конфиг
-notebook1  отдельный конфиг
-pc1        отдельный конфиг
-
-Неправильно: использовать один и тот же .conf на телефоне и ноутбуке одновременно.
-
-Если один конфиг используется на нескольких устройствах, будут конфликтовать ключи, VPN-IP и endpoint. Из-за этого подключение может работать нестабильно.
-
-Для каждого нового устройства создавай нового клиента через меню:
-
-3) Создать клиента
