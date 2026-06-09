@@ -37,27 +37,26 @@ chmod +x amneziawg-vds-manager.sh
 sudo bash amneziawg-vds-manager.sh
 ```
 
-## Чистая установка на Debian 13
+## Проверка перед запуском
 
-На свежей VDS с Debian 13 сначала установи базовые пакеты:
+На свежей VDS с Debian 13
 
 ```bash
 apt update
 apt install -y curl ca-certificates
 
-## Меню
+rm -f amneziawg-vds-manager.sh
 
-```text
-1) Установить и настроить AmneziaWG
-2) Удалить AmneziaWG
-3) Создать клиента
-4) Удалить клиента
-5) Показать список клиентов
-6) Показать конфиг/QR клиента
-7) Показать статус
-8) Показать логи
-0) Выход
+curl -fsSL "https://raw.githubusercontent.com/ikhaknazarov1234-ops/amneziawg-vds-manager/main/amneziawg-vds-manager.sh?cache=$(date +%s)" -o amneziawg-vds-manager.sh
+
+chmod +x amneziawg-vds-manager.sh
+
+bash -n amneziawg-vds-manager.sh && echo "OK"
+
+grep -n "resolvconf\|apt-key\|software-properties-common\|python3-launchpadlib" amneziawg-vds-manager.sh
 ```
+Результат должен быть "ОК"
+А после grep — пусто
 
 ## Поддерживаемые ОС
 
