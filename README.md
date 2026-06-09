@@ -133,14 +133,16 @@ sudo bash amneziawg-vds-manager.sh
 
 Через PowerShell:
 
-```powershell
-scp root@SERVER_IP:/root/amneziawg-clients/ИМЯ_КОНФИГА.conf ПУТЬ (например C:\Users\downl\file)
-```
+scp root@SERVER_IP:/root/amneziawg-clients/ИМЯ_КОНФИГА.conf .\ИМЯ_КОНФИГА.conf
+
+Пример:
+
+scp root@SERVER_IP:/root/amneziawg-clients/pc1.conf .\pc1.conf
 
 Если SSH недоступен, можно вывести конфиг в консоль VDS:
 
 ```bash
-cat /root/amneziawg-clients/pc1.conf
+cat /root/amneziawg-clients/ИМЯ_Конфига.conf
 ```
 
 И сохранить его на ПК как:
@@ -200,3 +202,21 @@ grep -n "resolvconf\|apt-key\|software-properties-common\|python3-launchpadlib" 
 ## Важно
 
 Не загружай клиентские `.conf` файлы на GitHub и не отправляй их в общие чаты. Внутри находится приватный ключ клиента.
+
+Важное правило для клиентов
+
+Один клиентский конфиг предназначен только для одного устройства.
+
+Правильно:
+
+phone1     отдельный конфиг
+notebook1  отдельный конфиг
+pc1        отдельный конфиг
+
+Неправильно: использовать один и тот же .conf на телефоне и ноутбуке одновременно.
+
+Если один конфиг используется на нескольких устройствах, будут конфликтовать ключи, VPN-IP и endpoint. Из-за этого подключение может работать нестабильно.
+
+Для каждого нового устройства создавай нового клиента через меню:
+
+3) Создать клиента
