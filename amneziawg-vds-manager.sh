@@ -1,3 +1,4 @@
+Тест версия (добавление функции отпрвки по почте)
 #!/usr/bin/env bash
 # AmneziaWG VDS Manager
 # Ubuntu/Debian helper for installing/removing AmneziaWG and managing client configs.
