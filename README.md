@@ -72,6 +72,8 @@ grep -n "resolvconf\|apt-key\|software-properties-common\|python3-launchpadlib" 
 ```text
 OK
 ```
+<img width="561" height="61" alt="image" src="https://github.com/user-attachments/assets/27da56ec-27ee-4004-9798-54c4450f7249" />
+
 
 После `grep` вывода быть не должно.
 
