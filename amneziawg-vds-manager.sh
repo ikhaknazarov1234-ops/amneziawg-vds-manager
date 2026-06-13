@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Тестовая версия: добавление отправки клиентских конфигов на e-mail
 # AmneziaWG VDS Manager
+# Version: v2.0 — client config delivery by e-mail via external SMTP
 # Ubuntu/Debian helper for installing/removing AmneziaWG and managing client configs.
 # Run as root: sudo bash amneziawg-vds-manager.sh
 
