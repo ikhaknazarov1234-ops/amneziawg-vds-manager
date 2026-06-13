@@ -206,9 +206,6 @@ cat /root/amneziawg-clients/ИМЯ_КОНФИГА.conf
 9) Настроить SMTP для отправки конфигов
 10) Отправить конфиг клиента на e-mail
 ```
-<img width="1798" height="733" alt="image" src="https://github.com/user-attachments/assets/2d927cc9-69ce-4482-8ab0-d1d12e93621b" />
-
-
 SMTP настраивается отдельно на каждой VDS. Настройки сохраняются локально на сервере:
 
 ```text
@@ -218,6 +215,8 @@ SMTP настраивается отдельно на каждой VDS. Наст
 ```
 
 Для отправки через Gmail нужно использовать пароль приложения, а не обычный пароль от аккаунта.
+
+<img width="1798" height="733" alt="image" src="https://github.com/user-attachments/assets/2d927cc9-69ce-4482-8ab0-d1d12e93621b" />
 
 Пример настроек Gmail:
 
