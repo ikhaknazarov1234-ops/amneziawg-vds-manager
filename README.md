@@ -222,7 +222,8 @@ SMTP настраивается отдельно на каждой VDS. Наст
 Для отправки через Gmail нужно использовать пароль приложения, а не обычный пароль от аккаунта.
 
 <img width="1798" height="733" alt="image" src="https://github.com/user-attachments/assets/2d927cc9-69ce-4482-8ab0-d1d12e93621b" />
-![Google App Password]
+Google App Password
+
 
 Пример настроек Gmail:
 
