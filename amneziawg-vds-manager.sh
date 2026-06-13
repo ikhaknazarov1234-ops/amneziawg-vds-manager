@@ -1,5 +1,5 @@
-Тест версия (добавление функции отпрвки по почте)
 #!/usr/bin/env bash
+# Тестовая версия: добавление отправки клиентских конфигов на e-mail
 # AmneziaWG VDS Manager
 # Ubuntu/Debian helper for installing/removing AmneziaWG and managing client configs.
 # Run as root: sudo bash amneziawg-vds-manager.sh
@@ -15,6 +15,10 @@ MANAGER_CONF="/etc/amneziawg-vds-manager.conf"
 AWG_CONF="$AWG_DIR/$AWG_IFACE.conf"
 SERVICE_FILE="/etc/systemd/system/awg-quick@.service"
 SYSCTL_CONF="/etc/sysctl.d/99-amneziawg-vds.conf"
+
+MSMTP_CONF="/etc/msmtprc"
+MSMTP_PASS_FILE="/etc/amneziawg-vds-manager-mail.pass"
+MUTT_CONF="/root/.muttrc"
 
 DEFAULT_PORT="51820"
 DEFAULT_SUBNET="10.66.0.0/24"
@@ -142,6 +146,10 @@ valid_port() {
 
 valid_client_name() {
   [[ "$1" =~ ^[A-Za-z0-9_-]{1,64}$ ]]
+}
+
+valid_email() {
+  [[ "$1" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]
 }
 
 valid_ipv4_cidr_24() {
@@ -608,6 +616,144 @@ show_client() {
   fi
 }
 
+setup_mail_sender() {
+  echo
+  info "Настройка отправки клиентских конфигов на e-mail через внешний SMTP."
+  warn "Клиентский .conf содержит приватный ключ. Отправляйте его только владельцу устройства."
+
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y --no-install-recommends msmtp msmtp-mta mutt ca-certificates
+
+  local smtp_host smtp_port smtp_user smtp_from smtp_pass
+
+  read -rp "SMTP host, например smtp.gmail.com: " smtp_host
+  while [[ -z "$smtp_host" ]]; do
+    read -rp "SMTP host не может быть пустым: " smtp_host
+  done
+
+  read -rp "SMTP port [587]: " smtp_port
+  smtp_port="${smtp_port:-587}"
+  while ! valid_port "$smtp_port"; do
+    read -rp "Введите корректный SMTP port 1-65535: " smtp_port
+  done
+
+  read -rp "SMTP user / login: " smtp_user
+  while [[ -z "$smtp_user" ]]; do
+    read -rp "SMTP user не может быть пустым: " smtp_user
+  done
+
+  read -rp "From e-mail [$smtp_user]: " smtp_from
+  smtp_from="${smtp_from:-$smtp_user}"
+  while ! valid_email "$smtp_from"; do
+    read -rp "Введите корректный From e-mail: " smtp_from
+  done
+
+  read -rsp "SMTP password / app password: " smtp_pass
+  echo
+  while [[ -z "$smtp_pass" ]]; do
+    read -rsp "Пароль не может быть пустым. SMTP password / app password: " smtp_pass
+    echo
+  done
+
+  cat > "$MSMTP_PASS_FILE" <<EOF
+$smtp_pass
+EOF
+  chmod 600 "$MSMTP_PASS_FILE"
+
+  cat > "$MSMTP_CONF" <<EOF
+defaults
+auth on
+tls on
+tls_starttls on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+
+account default
+host $smtp_host
+port $smtp_port
+from $smtp_from
+user $smtp_user
+passwordeval cat $MSMTP_PASS_FILE
+EOF
+  chmod 600 "$MSMTP_CONF"
+
+  cat > "$MUTT_CONF" <<EOF
+set sendmail="/usr/bin/msmtp"
+set use_from=yes
+set realname="$APP_NAME"
+set from="$smtp_from"
+EOF
+  chmod 600 "$MUTT_CONF"
+
+  log "SMTP-настройка сохранена."
+  info "Файл настроек: $MSMTP_CONF"
+  info "Файл пароля: $MSMTP_PASS_FILE"
+}
+
+send_client_config_email() {
+  if [[ ! -f "$MSMTP_CONF" || ! -f "$MSMTP_PASS_FILE" ]]; then
+    err "SMTP ещё не настроен. Сначала выберите пункт настройки SMTP."
+    return 1
+  fi
+
+  if ! command_exists mutt || ! command_exists msmtp; then
+    err "Не найдены mutt/msmtp. Сначала настройте SMTP через меню."
+    return 1
+  fi
+
+  if [[ ! -d "$CLIENT_DIR" ]]; then
+    err "Каталог клиентов не найден: $CLIENT_DIR"
+    return 1
+  fi
+
+  list_clients
+
+  local name email conf body_file
+  read -rp "Имя клиента для отправки: " name
+  if ! valid_client_name "$name"; then
+    err "Некорректное имя клиента."
+    return 1
+  fi
+
+  conf="$CLIENT_DIR/$name.conf"
+  if [[ ! -f "$conf" ]]; then
+    err "Файл клиента не найден: $conf"
+    return 1
+  fi
+
+  read -rp "E-mail получателя: " email
+  while ! valid_email "$email"; do
+    read -rp "Введите корректный e-mail получателя: " email
+  done
+
+  warn "Будет отправлен приватный клиентский конфиг: $conf"
+  warn "Не отправляйте один и тот же конфиг нескольким устройствам."
+  read -rp "Отправить '$name' на '$email'? [y/N]: " confirm
+  [[ "${confirm,,}" == "y" || "${confirm,,}" == "yes" ]] || { warn "Отменено."; return 0; }
+
+  body_file="$(mktemp)"
+  cat > "$body_file" <<EOF
+Здравствуйте.
+
+Во вложении находится конфигурация AmneziaWG для клиента: $name
+
+Важно:
+- используйте этот конфиг только на одном устройстве;
+- не пересылайте и не публикуйте этот файл;
+- при подозрении на компрометацию попросите администратора удалить клиента и создать новый.
+
+EOF
+
+  if mutt -s "AmneziaWG config: $name" -a "$conf" -- "$email" < "$body_file"; then
+    rm -f "$body_file"
+    log "Конфиг отправлен на $email"
+  else
+    rm -f "$body_file"
+    err "Не удалось отправить письмо. Проверьте SMTP-настройки."
+    return 1
+  fi
+}
+
 show_status() {
   echo
   info "Статус сервиса:"
@@ -678,6 +824,8 @@ menu() {
     echo "6) Показать конфиг/QR клиента"
     echo "7) Показать статус"
     echo "8) Показать логи"
+    echo "9) Настроить SMTP для отправки конфигов"
+    echo "10) Отправить конфиг клиента на e-mail"
     echo "0) Выход"
     echo "----------------------------------------"
     read -rp "Выберите пункт: " choice
@@ -691,6 +839,8 @@ menu() {
       6) show_client; pause ;;
       7) show_status; pause ;;
       8) show_logs; pause ;;
+      9) setup_mail_sender; pause ;;
+      10) send_client_config_email; pause ;;
       0) exit 0 ;;
       *) warn "Неверный пункт"; pause ;;
     esac
