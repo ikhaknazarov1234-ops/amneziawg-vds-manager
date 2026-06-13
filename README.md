@@ -38,6 +38,8 @@ VDS      10.66.0.1
   - только VPN-сетка `10.66.0.0/24`;
   - весь интернет через VDS.
 
+<img width="669" height="501" alt="image" src="https://github.com/user-attachments/assets/261a790a-4c12-4e91-84ca-5c57d44fa519" />
+
 ## Быстрый запуск
 
 ```bash
