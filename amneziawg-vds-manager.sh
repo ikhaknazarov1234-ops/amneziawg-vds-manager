@@ -407,7 +407,55 @@ client_ip_for_index() {
 }
 
 used_client_ips() {
-  grep -hE '^Address = ' "$CLIENT_DIR"/*.conf 2>/dev/null | awk '{print $3}' | cut -d/ -f1 || true
+  local file
+
+  {
+    shopt -s nullglob
+    for file in "$CLIENT_DIR"/*.conf; do
+      awk -F= '
+        /^[[:space:]]*Address[[:space:]]*=/ {
+          value=$2
+          gsub(/[[:space:]]/, "", value)
+          count=split(value, addresses, ",")
+
+          for (i=1; i<=count; i++) {
+            split(addresses[i], parts, "/")
+            if (parts[1] ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/) {
+              print parts[1]
+            }
+          }
+        }
+      ' "$file"
+    done
+    shopt -u nullglob
+
+    if [[ -f "$AWG_CONF" ]]; then
+      awk -F= '
+        /^[[:space:]]*AllowedIPs[[:space:]]*=/ {
+          value=$2
+          gsub(/[[:space:]]/, "", value)
+          count=split(value, addresses, ",")
+
+          for (i=1; i<=count; i++) {
+            split(addresses[i], parts, "/")
+            if (parts[1] ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/) {
+              print parts[1]
+            }
+          }
+        }
+      ' "$AWG_CONF"
+    fi
+  } | sort -u
+}
+
+server_client_name_exists() {
+  local name="$1"
+
+  [[ -f "$AWG_CONF" ]] || return 1
+
+  grep -Fqx "# BEGIN_CLIENT $name" "$AWG_CONF" ||
+    grep -Fqx "# END_CLIENT $name" "$AWG_CONF" ||
+    grep -Fqx "# Name = $name" "$AWG_CONF"
 }
 
 next_client_ip() {
@@ -468,6 +516,12 @@ create_client() {
   conf="$CLIENT_DIR/$name.conf"
   if [[ -f "$conf" ]]; then
     err "Клиент '$name' уже существует: $conf"
+    return 1
+  fi
+
+  if server_client_name_exists "$name"; then
+    err "Клиент '$name' уже присутствует в серверном конфиге: $AWG_CONF"
+    err "Создание остановлено, чтобы не добавить дублирующий peer."
     return 1
   fi
 
