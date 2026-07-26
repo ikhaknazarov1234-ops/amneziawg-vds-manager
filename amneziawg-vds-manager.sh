@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AmneziaWG VDS Manager
-# Version: v2.0 — client config delivery by e-mail via external SMTP
+# Version: v2.1 — bugfix and security patch
 # Ubuntu/Debian helper for installing/removing AmneziaWG and managing client configs.
 # Run as root: sudo bash amneziawg-vds-manager.sh
 
@@ -525,13 +525,72 @@ EOF
 
 remove_client_block() {
   local name="$1"
-  awk -v name="$name" '
-    $0 == "# BEGIN_CLIENT " name {skip=1; next}
-    $0 == "# END_CLIENT " name {skip=0; next}
-    skip != 1 {print}
-  ' "$AWG_CONF" > "$AWG_CONF.tmp"
-  mv "$AWG_CONF.tmp" "$AWG_CONF"
-  chmod 600 "$AWG_CONF"
+  local begin_marker="# BEGIN_CLIENT $name"
+  local end_marker="# END_CLIENT $name"
+  local begin_count end_count backup tmp
+
+  begin_count="$(grep -Fxc "$begin_marker" "$AWG_CONF" || true)"
+  end_count="$(grep -Fxc "$end_marker" "$AWG_CONF" || true)"
+
+  if (( begin_count == 0 && end_count == 0 )); then
+    warn "Peer клиента '$name' в серверном конфиге не найден."
+    return 0
+  fi
+
+  if (( begin_count != 1 || end_count != 1 )); then
+    err "Нарушена структура блока клиента '$name'."
+    err "BEGIN_CLIENT: $begin_count, END_CLIENT: $end_count"
+    err "Серверный конфиг не изменён."
+    return 1
+  fi
+
+  backup="${AWG_CONF}.backup-$(date +%Y%m%d-%H%M%S)"
+  cp -a "$AWG_CONF" "$backup"
+  chmod 600 "$backup"
+
+  tmp="$(mktemp "${AWG_CONF}.tmp.XXXXXX")"
+
+  if ! awk -v name="$name" '
+    $0 == "# BEGIN_CLIENT " name {
+      if (skip == 1) {
+        exit 20
+      }
+
+      skip=1
+      found_begin=1
+      next
+    }
+
+    $0 == "# END_CLIENT " name {
+      if (skip != 1) {
+        exit 21
+      }
+
+      skip=0
+      found_end=1
+      next
+    }
+
+    skip != 1 {
+      print
+    }
+
+    END {
+      if (skip == 1 || found_begin != 1 || found_end != 1) {
+        exit 22
+      }
+    }
+  ' "$AWG_CONF" > "$tmp"; then
+    rm -f "$tmp"
+    err "Не удалось безопасно удалить блок клиента '$name'."
+    err "Серверный конфиг не изменён."
+    return 1
+  fi
+
+  chmod 600 "$tmp"
+  mv "$tmp" "$AWG_CONF"
+
+  log "Создан backup серверного конфига: $backup"
 }
 
 delete_client() {
@@ -555,7 +614,11 @@ delete_client() {
   read -rp "Точно удалить клиента '$name'? [y/N]: " confirm
   [[ "${confirm,,}" == "y" || "${confirm,,}" == "yes" ]] || { warn "Отменено."; return 0; }
 
-  remove_client_block "$name"
+  if ! remove_client_block "$name"; then
+    err "Удаление клиента остановлено из-за ошибки серверного конфига."
+    return 1
+  fi
+
   rm -f "$CLIENT_DIR/$name.conf"
   restart_or_reload_awg
 
@@ -805,7 +868,7 @@ print_banner() {
  / ___ |/ / / / / / / / /  __/ / / /_/ /| |/ |/ / / /_/ /_/  
 /_/  |_/_/ /_/ /_/_/ /_/\___/_/ /\__,_/ |__/|__/  \____(_)   
                             /___/                             
-              VDS Manager v2.0
+              VDS Manager v2.1
 EOF
 }
 
